@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PTメニュー自動生成</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f0f4f8; color: #333; }
+
+    header {
+      background: linear-gradient(135deg, #2d6a4f, #40916c);
+      color: white;
+      padding: 18px 24px;
+    }
+    header h1 { font-size: 1.2rem; font-weight: 700; }
+    header p { font-size: 0.8rem; opacity: 0.85; margin-top: 2px; }
+
+    .container { max-width: 680px; margin: 0 auto; padding: 24px 16px; }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .card-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #40916c;
+      margin-bottom: 14px;
+    }
+
+    /* APIキー */
+    .api-key-row { display: flex; gap: 8px; align-items: center; }
+    .api-key-row input {
+      flex: 1; padding: 10px 12px; border: 1px solid #ddd;
+      border-radius: 8px; font-size: 0.9rem; font-family: monospace;
+    }
+    .api-key-row input:focus { outline: none; border-color: #40916c; }
+    .api-status { font-size: 0.75rem; margin-top: 6px; }
+    .api-status.saved { color: #40916c; }
+    .api-status.empty { color: #999; }
+
+    /* フォーム共通 */
+    .form-group { margin-bottom: 18px; }
+    .form-group:last-child { margin-bottom: 0; }
+    label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; }
+    label span.required { color: #e05; font-size: 0.75rem; margin-left: 4px; }
+    label span.sub { font-weight: 400; color: #777; font-size: 0.8rem; }
+
+    input[type="number"],
+    input[type="text"],
+    select,
+    textarea {
+      width: 100%; padding: 10px 12px; border: 1px solid #ddd;
+      border-radius: 8px; font-size: 0.95rem; font-family: inherit;
+      background: #fafafa;
+    }
+    input[type="number"]:focus,
+    input[type="text"]:focus,
+    select:focus,
+    textarea:focus { outline: none; border-color: #40916c; background: white; }
+    textarea { resize: vertical; min-height: 72px; }
+
+    .inline-row { display: flex; gap: 10px; }
+    .inline-row .form-group { flex: 1; margin-bottom: 0; }
+
+    /* チェックボックス・ラジオ */
+    .checkbox-group, .radio-group {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px;
+    }
+    .checkbox-group label, .radio-group label {
+      display: flex; align-items: center; gap: 6px;
+      font-weight: 400; font-size: 0.9rem;
+      background: #f0f4f8; border: 1px solid #ddd;
+      padding: 7px 12px; border-radius: 20px; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .checkbox-group input[type="checkbox"],
+    .radio-group input[type="radio"] { width: auto; }
+    .checkbox-group label:has(input:checked),
+    .radio-group label:has(input:checked) {
+      background: #d8f3dc; border-color: #40916c; color: #2d6a4f; font-weight: 600;
+    }
+
+    /* 生成ボタン */
+    .generate-btn {
+      width: 100%; padding: 16px;
+      background: linear-gradient(135deg, #2d6a4f, #40916c);
+      color: white; border: none; border-radius: 12px;
+      font-size: 1.05rem; font-weight: 700; cursor: pointer;
+      transition: opacity 0.2s; margin-bottom: 24px;
+    }
+    .generate-btn:hover { opacity: 0.88; }
+    .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ローディング */
+    #loading {
+      display: none; text-align: center; padding: 40px 0;
+    }
+    .spinner {
+      width: 44px; height: 44px; border: 4px solid #d8f3dc;
+      border-top-color: #40916c; border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading p { color: #555; font-size: 0.9rem; }
+
+    /* 出力エリア */
+    #output { display: none; }
+
+    .output-section { margin-bottom: 20px; }
+    .output-label {
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: #40916c; margin-bottom: 8px;
+    }
+    .output-box {
+      background: white; border-radius: 12px; padding: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .monthly-goal {
+      font-size: 1.1rem; font-weight: 700; color: #2d6a4f;
+      line-height: 1.5;
+    }
+
+    /* 週間メニュー */
+    .day-block { margin-bottom: 14px; }
+    .day-label {
+      font-weight: 700; font-size: 0.85rem; color: #555;
+      border-left: 3px solid #40916c; padding-left: 8px; margin-bottom: 6px;
+    }
+    .exercise-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem;
+    }
+    .exercise-row:last-child { border-bottom: none; }
+    .ex-name { font-weight: 600; flex: 1; }
+    .ex-detail { color: #666; font-size: 0.8rem; }
+    .ex-cal { color: #40916c; font-weight: 600; font-size: 0.8rem; white-space: nowrap; }
+    .ex-video a {
+      font-size: 0.75rem; color: #2d6a4f; text-decoration: none;
+      background: #d8f3dc; padding: 2px 8px; border-radius: 10px;
+      white-space: nowrap;
+    }
+    .ex-video a:hover { background: #b7e4c7; }
+
+    .rest-day {
+      color: #aaa; font-style: italic; font-size: 0.88rem; padding: 6px 0;
+    }
+
+    /* 合計カロリー */
+    .calorie-total {
+      font-size: 1.4rem; font-weight: 800; color: #2d6a4f;
+      text-align: center;
+    }
+    .calorie-total span { font-size: 0.9rem; font-weight: 400; color: #777; }
+
+    /* 注意点 */
+    .warning-list { list-style: none; }
+    .warning-list li {
+      padding: 7px 0; border-bottom: 1px solid #f0f0f0;
+      font-size: 0.9rem; padding-left: 16px; position: relative;
+    }
+    .warning-list li::before { content: "⚠"; position: absolute; left: 0; }
+    .warning-list li:last-child { border-bottom: none; }
+
+    /* メール文 */
+    .email-box {
+      background: #f8fffe; border: 1px solid #b7e4c7;
+      border-radius: 10px; padding: 16px;
+      font-size: 0.88rem; line-height: 1.7; white-space: pre-wrap;
+    }
+    .copy-btn {
+      display: block; width: 100%; margin-top: 10px;
+      padding: 10px; background: #40916c; color: white;
+      border: none; border-radius: 8px; font-size: 0.9rem;
+      cursor: pointer; font-weight: 600; transition: opacity 0.2s;
+    }
+    .copy-btn:hover { opacity: 0.85; }
+
+    /* エラー */
+    .error-box {
+      background: #fff0f0; border: 1px solid #ffb3b3;
+      border-radius: 10px; padding: 16px; color: #c00;
+      font-size: 0.9rem; display: none; margin-bottom: 16px;
+    }
+
+    /* リセットリンク */
+    .reset-link {
+      text-align: center; margin-top: 8px;
+    }
+    .reset-link button {
+      background: none; border: none; color: #999; font-size: 0.85rem;
+      cursor: pointer; text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>PTメニュー自動生成</h1>
+  <p>クライアントのアンケートからトレーニングメニューを自動作成</p>
+</header>
+
+<div class="container">
+
+  <!-- APIキー設定 -->
+  <div class="card" id="api-card">
+    <div class="card-title">Claude API キー</div>
+    <div class="api-key-row">
+      <input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off">
+      <button onclick="saveApiKey()" style="padding:10px 16px;background:#40916c;color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.9rem;white-space:nowrap;">保存</button>
+    </div>
+    <div class="api-status" id="api-status">APIキーを入力してください</div>
+  </div>
+
+  <!-- フォーム -->
+  <form id="client-form">
+
+    <!-- 1. 基本情報 -->
+    <div class="card">
+      <div class="card-title">基本情報</div>
+      <div class="inline-row">
+        <div class="form-group">
+          <label>年齢<span class="required">必須</span></label>
+          <input type="number" id="age" placeholder="例: 35" min="15" max="90" required>
+        </div>
+        <div class="form-group">
+          <label>身長 (cm)<span class="required">必須</span></label>
+          <input type="number" id="height" placeholder="例: 158" min="100" max="220" required>
+        </div>
+        <div class="form-group">
+          <label>体重 (kg)<span class="required">必須</span></label>
+          <input type="number" id="weight" placeholder="例: 56" min="30" max="200" required>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 出産経験 -->
+    <div class="card">
+      <div class="card-title">出産経験</div>
+      <div class="form-group">
+        <label>出産経験</label>
+        <div class="radio-group">
+          <label><input type="radio" name="birth" value="なし" checked> なし</label>
+          <label><input type="radio" name="birth" value="あり"> あり</label>
+        </div>
+      </div>
+      <div class="form-group" id="last-child-group" style="display:none;">
+        <label>末子の年齢 <span class="sub">（出産ありの場合）</span></label>
+        <input type="number" id="last-child-age" placeholder="例: 2（歳）" min="0" max="20">
+      </div>
+    </div>
+
+    <!-- 3. きっかけ -->
+    <div class="card">
+      <div class="card-title">トレーニングを始めたいきっかけ</div>
+      <div class="form-group">
+        <textarea id="motivation" placeholder="例: 産後で体型が変わった、体力をつけたい、友人の結婚式に向けて…" rows="3"></textarea>
+      </div>
+    </div>
+
+    <!-- 4. 目標 -->
+    <div class="card">
+      <div class="card-title">目標（複数選択可）</div>
+      <div class="form-group">
+        <div class="checkbox-group">
+          <label><input type="checkbox" name="goal" value="ダイエット・体重減量"> ダイエット・体重減量</label>
+          <label><input type="checkbox" name="goal" value="筋力アップ"> 筋力アップ</label>
+          <label><input type="checkbox" name="goal" value="体型引き締め"> 体型引き締め</label>
+          <label><input type="checkbox" name="goal" value="産後の身体の回復"> 産後の身体の回復</label>
+          <label><input type="checkbox" name="goal" value="姿勢改善"> 姿勢改善</label>
+          <label><input type="checkbox" name="goal" value="体力・持久力アップ"> 体力・持久力アップ</label>
+          <label><input type="checkbox" name="goal" value="健康維持"> 健康維持</label>
+          <label><input type="checkbox" name="goal" value="ストレス解消"> ストレス解消</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. 達成時期 -->
+    <div class="card">
+      <div class="card-title">目標の達成したい時期</div>
+      <div class="form-group">
+        <select id="target-period">
+          <option value="">選択してください</option>
+          <option value="1ヶ月以内">1ヶ月以内</option>
+          <option value="3ヶ月以内">3ヶ月以内</option>
+          <option value="6ヶ月以内">6ヶ月以内</option>
+          <option value="1年以内">1年以内</option>
+          <option value="のんびりマイペース">のんびりマイペース</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 6. 不調・痛み -->
+    <div class="card">
+      <div class="card-title">現在の体の不調・痛み</div>
+      <div class="form-group">
+        <textarea id="pain" placeholder="例: 腰痛あり、右膝に違和感、特になし など" rows="2"></textarea>
+      </div>
+    </div>
+
+    <!-- 7. 既往歴・運動制限 -->
+    <div class="card">
+      <div class="card-title">既往歴・運動制限</div>
+      <div class="form-group">
+        <textarea id="medical" placeholder="例: 高血圧で投薬中、過去に腰椎ヘルニア、特になし など" rows="2"></textarea>
+      </div>
+    </div>
+
+    <!-- 8. 週の頻度・時間 -->
+    <div class="card">
+      <div class="card-title">トレーニング頻度・時間</div>
+      <div class="inline-row">
+        <div class="form-group">
+          <label>週の頻度</label>
+          <select id="frequency">
+            <option value="週1回">週1回</option>
+            <option value="週2回" selected>週2回</option>
+            <option value="週3回">週3回</option>
+            <option value="週4回以上">週4回以上</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>1回あたりの時間</label>
+          <select id="duration">
+            <option value="30分程度">30分程度</option>
+            <option value="45分程度" selected>45分程度</option>
+            <option value="60分程度">60分程度</option>
+            <option value="90分程度">90分程度</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 9. トレーニングしやすい時間帯 -->
+    <div class="card">
+      <div class="card-title">トレーニングしやすい時間帯</div>
+      <div class="form-group">
+        <div class="checkbox-group">
+          <label><input type="checkbox" name="timeSlot" value="早朝（6時前）"> 早朝（6時前）</label>
+          <label><input type="checkbox" name="timeSlot" value="朝（6〜9時）"> 朝（6〜9時）</label>
+          <label><input type="checkbox" name="timeSlot" value="午前（9〜12時）"> 午前（9〜12時）</label>
+          <label><input type="checkbox" name="timeSlot" value="昼（12〜15時）"> 昼（12〜15時）</label>
+          <label><input type="checkbox" name="timeSlot" value="夕方（15〜18時）"> 夕方（15〜18時）</label>
+          <label><input type="checkbox" name="timeSlot" value="夜（18〜21時）"> 夜（18〜21時）</label>
+          <label><input type="checkbox" name="timeSlot" value="深夜（21時以降）"> 深夜（21時以降）</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 10. 睡眠・ストレス -->
+    <div class="card">
+      <div class="card-title">睡眠時間とストレス感</div>
+      <div class="inline-row">
+        <div class="form-group">
+          <label>平均睡眠時間</label>
+          <select id="sleep">
+            <option value="5時間未満">5時間未満</option>
+            <option value="5〜6時間">5〜6時間</option>
+            <option value="6〜7時間" selected>6〜7時間</option>
+            <option value="7〜8時間">7〜8時間</option>
+            <option value="8時間以上">8時間以上</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>日常のストレス感</label>
+          <select id="stress">
+            <option value="ほとんどない">ほとんどない</option>
+            <option value="少しある" selected>少しある</option>
+            <option value="まあまあある">まあまあある</option>
+            <option value="かなり高い">かなり高い</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+  </form>
+
+  <div class="error-box" id="error-box"></div>
+  <button class="generate-btn" onclick="generateMenu()">メニューを生成する</button>
+
+  <!-- ローディング -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <p>クライアントに合ったメニューを作成中...</p>
+  </div>
+
+  <!-- 出力 -->
+  <div id="output">
+
+    <div class="output-section">
+      <div class="output-label">今月の目標</div>
+      <div class="output-box">
+        <div class="monthly-goal" id="out-monthly-goal"></div>
+      </div>
+    </div>
+
+    <div class="output-section">
+      <div class="output-label">週間トレーニングメニュー</div>
+      <div class="output-box" id="out-weekly-menu"></div>
+    </div>
+
+    <div class="output-section">
+      <div class="output-label">週あたり合計消費カロリー目安</div>
+      <div class="output-box">
+        <div class="calorie-total" id="out-total-cal"></div>
+      </div>
+    </div>
+
+    <div class="output-section">
+      <div class="output-label">注意点・アドバイス</div>
+      <div class="output-box">
+        <ul class="warning-list" id="out-warnings"></ul>
+        <p id="out-advice" style="margin-top:12px;font-size:0.9rem;line-height:1.7;color:#444;"></p>
+      </div>
+    </div>
+
+    <div class="output-section">
+      <div class="output-label">クライアントへのメール文</div>
+      <div class="output-box">
+        <div class="email-box" id="out-email"></div>
+        <button class="copy-btn" onclick="copyEmail()">メール文をコピー</button>
+      </div>
+    </div>
+
+    <div class="reset-link">
+      <button onclick="resetForm()">別のクライアントのメニューを作成する</button>
+    </div>
+
+  </div>
+</div>
+
+<script src="exercises.js"></script>
+<script>
+  // ---- APIキー管理 ----
+  function saveApiKey() {
+    const key = document.getElementById('api-key-input').value.trim();
+    if (!key.startsWith('sk-ant-')) {
+      showError('APIキーは sk-ant- から始まる文字列を入力してください');
+      return;
+    }
+    localStorage.setItem('claude_api_key', key);
+    updateApiStatus();
+  }
+
+  function updateApiStatus() {
+    const key = localStorage.getItem('claude_api_key');
+    const el = document.getElementById('api-status');
+    const input = document.getElementById('api-key-input');
+    if (key) {
+      el.textContent = 'APIキーが保存されています ✓';
+      el.className = 'api-status saved';
+      input.placeholder = '（保存済み）';
+      input.value = '';
+    } else {
+      el.textContent = 'APIキーを入力してください';
+      el.className = 'api-status empty';
+    }
+  }
+
+  // ---- 出産ありの場合だけ末子年齢を表示 ----
+  document.querySelectorAll('input[name="birth"]').forEach(r => {
+    r.addEventListener('change', () => {
+      const show = document.querySelector('input[name="birth"]:checked').value === 'あり';
+      document.getElementById('last-child-group').style.display = show ? 'block' : 'none';
+    });
+  });
+
+  // ---- メニュー生成 ----
+  async function generateMenu() {
+    hideError();
+    const apiKey = localStorage.getItem('claude_api_key');
+    if (!apiKey) {
+      showError('先にClaude APIキーを保存してください');
+      return;
+    }
+
+    // バリデーション
+    const age = document.getElementById('age').value;
+    const height = document.getElementById('height').value;
+    const weight = document.getElementById('weight').value;
+    if (!age || !height || !weight) {
+      showError('年齢・身長・体重は必須です');
+      return;
+    }
+    const goals = [...document.querySelectorAll('input[name="goal"]:checked')].map(c => c.value);
+    if (goals.length === 0) {
+      showError('目標を1つ以上選択してください');
+      return;
+    }
+
+    // フォーム値収集
+    const birth = document.querySelector('input[name="birth"]:checked').value;
+    const lastChildAge = document.getElementById('last-child-age').value;
+    const motivation = document.getElementById('motivation').value || 'なし';
+    const targetPeriod = document.getElementById('target-period').value || '未回答';
+    const pain = document.getElementById('pain').value || 'なし';
+    const medical = document.getElementById('medical').value || 'なし';
+    const frequency = document.getElementById('frequency').value;
+    const duration = document.getElementById('duration').value;
+    const timeSlots = [...document.querySelectorAll('input[name="timeSlot"]:checked')].map(c => c.value);
+    const sleep = document.getElementById('sleep').value;
+    const stress = document.getElementById('stress').value;
+
+    // 種目リストをプロンプトに含める
+    const exerciseList = EXERCISES.map(e => `${e.name}（${e.category}）`).join('、');
+
+    const prompt = `あなたはプロのパーソナルトレーナーです。以下のクライアント情報をもとに、最適な1ヶ月のトレーニングメニューを作成してください。
+
+## クライアント情報
+- 年齢: ${age}歳
+- 身長: ${height}cm / 体重: ${weight}kg
+- 出産経験: ${birth}${birth === 'あり' && lastChildAge ? `（末子${lastChildAge}歳）` : ''}
+- きっかけ: ${motivation}
+- 目標: ${goals.join('、')}
+- 達成したい時期: ${targetPeriod}
+- 体の不調・痛み: ${pain}
+- 既往歴・運動制限: ${medical}
+- 週の頻度: ${frequency} / 1回: ${duration}
+- トレーニングしやすい時間帯: ${timeSlots.length ? timeSlots.join('、') : '未回答'}
+- 睡眠時間: ${sleep}
+- ストレス感: ${stress}
+
+## 使用できる種目リスト
+${exerciseList}
+
+上記リストの種目名を使ってメニューを構成してください。リストにない種目は使わないでください。
+
+## 出力形式（必ずJSON形式で出力してください）
+
+\`\`\`json
+{
+  "monthlyGoal": "今月の目標（1〜2文）",
+  "weeklyMenu": [
+    {
+      "day": "月曜日",
+      "isRest": false,
+      "exercises": [
+        {
+          "name": "種目名（上記リストの名前と完全一致）",
+          "sets": 3,
+          "reps": "10回",
+          "durationMins": null
+        }
+      ]
+    },
+    {
+      "day": "火曜日",
+      "isRest": true,
+      "exercises": []
+    }
+  ],
+  "warnings": ["注意点1", "注意点2", "注意点3"],
+  "advice": "トレーナーからのアドバイス（3〜5文）",
+  "emailText": "クライアントへそのまま送れるメール文（件名含む）"
+}
+\`\`\`
+
+月〜日の7日分を必ず出力してください。休息日は isRest: true にしてください。`;
+
+    // UI切替
+    document.getElementById('output').style.display = 'none';
+    document.getElementById('loading').style.display = 'block';
+    document.querySelector('.generate-btn').disabled = true;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 4096,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || `APIエラー (${res.status})`);
+      }
+
+      const data = await res.json();
+      const text = data.content[0].text;
+
+      // JSONを抽出
+      const match = text.match(/```json\s*([\s\S]*?)\s*```/);
+      if (!match) throw new Error('メニューの生成に失敗しました。もう一度試してください。');
+      const menu = JSON.parse(match[1]);
+
+      renderOutput(menu);
+
+    } catch (e) {
+      showError(e.message);
+    } finally {
+      document.getElementById('loading').style.display = 'none';
+      document.querySelector('.generate-btn').disabled = false;
+    }
+  }
+
+  // ---- 出力レンダリング ----
+  function renderOutput(menu) {
+    // 今月の目標
+    document.getElementById('out-monthly-goal').textContent = menu.monthlyGoal;
+
+    // 週間メニュー
+    let totalCal = 0;
+    const menuEl = document.getElementById('out-weekly-menu');
+    menuEl.innerHTML = '';
+
+    menu.weeklyMenu.forEach(day => {
+      const block = document.createElement('div');
+      block.className = 'day-block';
+
+      const dayLabel = document.createElement('div');
+      dayLabel.className = 'day-label';
+      dayLabel.textContent = day.day;
+      block.appendChild(dayLabel);
+
+      if (day.isRest) {
+        const rest = document.createElement('div');
+        rest.className = 'rest-day';
+        rest.textContent = '休息日（ストレッチ・散歩など軽い活動OK）';
+        block.appendChild(rest);
+      } else {
+        day.exercises.forEach(ex => {
+          const exData = findExercise(ex.name);
+          let calEstimate = 0;
+          if (exData) {
+            // 時間ベースで計算（durationMinsがあれば使用、なければsets×2分と仮定）
+            const mins = ex.durationMins || (ex.sets * 2);
+            calEstimate = Math.round(exData.kcalPer30mins * mins / 30);
+            totalCal += calEstimate;
+          }
+
+          const row = document.createElement('div');
+          row.className = 'exercise-row';
+          row.innerHTML = `
+            <div style="flex:1">
+              <div class="ex-name">${ex.name}</div>
+              <div class="ex-detail">${ex.sets}セット × ${ex.reps}${ex.durationMins ? `（${ex.durationMins}分）` : ''}</div>
+            </div>
+            <div class="ex-cal">${calEstimate > 0 ? `約${calEstimate}kcal` : ''}</div>
+            ${exData ? `<div class="ex-video"><a href="${exData.videoUrl}" target="_blank" rel="noopener">動画▶</a></div>` : ''}
+          `;
+          block.appendChild(row);
+        });
+      }
+
+      menuEl.appendChild(block);
+    });
+
+    // 合計カロリー
+    document.getElementById('out-total-cal').innerHTML =
+      `約 <strong>${totalCal}</strong> kcal <span>/ 週（目安）</span>`;
+
+    // 注意点
+    const warnEl = document.getElementById('out-warnings');
+    warnEl.innerHTML = '';
+    (menu.warnings || []).forEach(w => {
+      const li = document.createElement('li');
+      li.textContent = w;
+      warnEl.appendChild(li);
+    });
+    document.getElementById('out-advice').textContent = menu.advice || '';
+
+    // メール文
+    document.getElementById('out-email').textContent = menu.emailText || '';
+
+    document.getElementById('output').style.display = 'block';
+    document.getElementById('out-monthly-goal').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---- コピー ----
+  function copyEmail() {
+    const text = document.getElementById('out-email').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector('.copy-btn');
+      btn.textContent = 'コピーしました ✓';
+      setTimeout(() => { btn.textContent = 'メール文をコピー'; }, 2000);
+    });
+  }
+
+  // ---- リセット ----
+  function resetForm() {
+    document.getElementById('output').style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ---- エラー表示 ----
+  function showError(msg) {
+    const el = document.getElementById('error-box');
+    el.textContent = msg;
+    el.style.display = 'block';
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  function hideError() {
+    document.getElementById('error-box').style.display = 'none';
+  }
+
+  // 初期化
+  updateApiStatus();
+</script>
+</body>
+</html>
