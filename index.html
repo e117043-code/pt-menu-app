@@ -134,7 +134,7 @@
       border-left: 3px solid #40916c; padding-left: 8px; margin-bottom: 6px;
     }
     .exercise-row {
-      display: flex; align-items: flex-start; gap: 10px;
+      display: flex; align-items: center; gap: 8px;
       padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem;
     }
     .exercise-row:last-child { border-bottom: none; }
@@ -147,6 +147,30 @@
       white-space: nowrap;
     }
     .ex-video a:hover { background: #b7e4c7; }
+
+    /* 編集UI */
+    .ex-select {
+      flex: 1; padding: 6px 8px; border: 1px solid #b7e4c7;
+      border-radius: 6px; font-size: 0.85rem; background: #f8fffe;
+    }
+    .ex-sets-input, .ex-reps-input {
+      border: 1px solid #b7e4c7; border-radius: 6px;
+      padding: 5px 6px; font-size: 0.85rem; background: #f8fffe;
+    }
+    .ex-sets-input { width: 44px; text-align: center; }
+    .ex-reps-input { width: 64px; }
+    .ex-del-btn {
+      background: none; border: none; color: #ccc; font-size: 1.1rem;
+      cursor: pointer; padding: 2px 4px; line-height: 1;
+    }
+    .ex-del-btn:hover { color: #e05; }
+    .add-ex-btn {
+      width: 100%; margin-top: 8px; padding: 7px;
+      background: #f0f4f8; border: 1px dashed #aaa;
+      border-radius: 8px; color: #666; font-size: 0.85rem;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .add-ex-btn:hover { background: #d8f3dc; border-color: #40916c; color: #2d6a4f; }
 
     .rest-day {
       color: #aaa; font-style: italic; font-size: 0.88rem; padding: 6px 0;
@@ -607,13 +631,105 @@ ${exerciseList}
     }
   }
 
+  // ---- 種目ドロップダウンのHTML生成 ----
+  function buildExSelect(selectedName) {
+    const categories = [...new Set(EXERCISES.map(e => e.category))];
+    let html = `<select class="ex-select" onchange="onExSelectChange(this)">`;
+    categories.forEach(cat => {
+      html += `<optgroup label="${cat}">`;
+      EXERCISES.filter(e => e.category === cat).forEach(e => {
+        const sel = e.name === selectedName ? 'selected' : '';
+        html += `<option value="${e.name}" ${sel}>${e.name}</option>`;
+      });
+      html += `</optgroup>`;
+    });
+    html += `</select>`;
+    return html;
+  }
+
+  // ---- 種目行のHTML生成 ----
+  function buildExRow(ex) {
+    const exData = findExercise(ex.name);
+    const cal = calcExCal(exData, ex.sets);
+    const videoHtml = exData
+      ? `<div class="ex-video"><a href="${exData.videoUrl}" target="_blank" rel="noopener">動画▶</a></div>`
+      : '';
+    return `
+      ${buildExSelect(ex.name)}
+      <input class="ex-sets-input" type="number" min="1" max="20" value="${ex.sets}"
+        title="セット数" onchange="recalcRow(this)">
+      <span style="font-size:0.8rem;color:#777;">×</span>
+      <input class="ex-reps-input" type="text" value="${ex.reps}" title="回数・時間">
+      <div class="ex-cal">${cal > 0 ? `約${cal}kcal` : ''}</div>
+      ${videoHtml}
+      <button class="ex-del-btn" onclick="deleteExRow(this)" title="削除">×</button>
+    `;
+  }
+
+  function calcExCal(exData, sets) {
+    if (!exData) return 0;
+    const mins = sets * 2;
+    return Math.round(exData.kcalPer30mins * mins / 30);
+  }
+
+  // ---- 種目変更時: 動画URLとカロリー更新 ----
+  function onExSelectChange(sel) {
+    const row = sel.closest('.exercise-row');
+    const exData = findExercise(sel.value);
+    // 動画リンク更新
+    const videoDiv = row.querySelector('.ex-video');
+    if (videoDiv) {
+      videoDiv.innerHTML = exData
+        ? `<a href="${exData.videoUrl}" target="_blank" rel="noopener">動画▶</a>` : '';
+    }
+    recalcRow(sel);
+  }
+
+  // ---- セット数変更時: カロリー更新 ----
+  function recalcRow(el) {
+    const row = el.closest('.exercise-row');
+    const name = row.querySelector('.ex-select').value;
+    const sets = parseInt(row.querySelector('.ex-sets-input').value) || 1;
+    const exData = findExercise(name);
+    const cal = calcExCal(exData, sets);
+    row.querySelector('.ex-cal').textContent = cal > 0 ? `約${cal}kcal` : '';
+    recalcTotals();
+  }
+
+  // ---- 週合計カロリー再計算 ----
+  function recalcTotals() {
+    let total = 0;
+    document.querySelectorAll('#out-weekly-menu .exercise-row').forEach(row => {
+      const text = row.querySelector('.ex-cal')?.textContent || '';
+      const m = text.match(/(\d+)/);
+      if (m) total += parseInt(m[1]);
+    });
+    document.getElementById('out-total-cal').innerHTML =
+      `約 <strong>${total}</strong> kcal <span>/ 週（目安）</span>`;
+  }
+
+  // ---- 種目行削除 ----
+  function deleteExRow(btn) {
+    btn.closest('.exercise-row').remove();
+    recalcTotals();
+  }
+
+  // ---- 種目行追加 ----
+  function addExRow(btn) {
+    const block = btn.closest('.day-block');
+    const row = document.createElement('div');
+    row.className = 'exercise-row';
+    row.innerHTML = buildExRow({ name: EXERCISES[0].name, sets: 3, reps: '10回' });
+    block.insertBefore(row, btn);
+    recalcTotals();
+  }
+
   // ---- 出力レンダリング ----
   function renderOutput(menu) {
     // 今月の目標
     document.getElementById('out-monthly-goal').textContent = menu.monthlyGoal;
 
     // 週間メニュー
-    let totalCal = 0;
     const menuEl = document.getElementById('out-weekly-menu');
     menuEl.innerHTML = '';
 
@@ -633,35 +749,22 @@ ${exerciseList}
         block.appendChild(rest);
       } else {
         day.exercises.forEach(ex => {
-          const exData = findExercise(ex.name);
-          let calEstimate = 0;
-          if (exData) {
-            // 時間ベースで計算（durationMinsがあれば使用、なければsets×2分と仮定）
-            const mins = ex.durationMins || (ex.sets * 2);
-            calEstimate = Math.round(exData.kcalPer30mins * mins / 30);
-            totalCal += calEstimate;
-          }
-
           const row = document.createElement('div');
           row.className = 'exercise-row';
-          row.innerHTML = `
-            <div style="flex:1">
-              <div class="ex-name">${ex.name}</div>
-              <div class="ex-detail">${ex.sets}セット × ${ex.reps}${ex.durationMins ? `（${ex.durationMins}分）` : ''}</div>
-            </div>
-            <div class="ex-cal">${calEstimate > 0 ? `約${calEstimate}kcal` : ''}</div>
-            ${exData ? `<div class="ex-video"><a href="${exData.videoUrl}" target="_blank" rel="noopener">動画▶</a></div>` : ''}
-          `;
+          row.innerHTML = buildExRow(ex);
           block.appendChild(row);
         });
+
+        // 種目追加ボタン
+        const addBtn = document.createElement('button');
+        addBtn.className = 'add-ex-btn';
+        addBtn.textContent = '+ 種目を追加';
+        addBtn.onclick = () => addExRow(addBtn);
+        block.appendChild(addBtn);
       }
 
       menuEl.appendChild(block);
     });
-
-    // 合計カロリー
-    document.getElementById('out-total-cal').innerHTML =
-      `約 <strong>${totalCal}</strong> kcal <span>/ 週（目安）</span>`;
 
     // 注意点
     const warnEl = document.getElementById('out-warnings');
@@ -677,6 +780,7 @@ ${exerciseList}
     document.getElementById('out-email').textContent = menu.emailText || '';
 
     document.getElementById('output').style.display = 'block';
+    recalcTotals();
     document.getElementById('out-monthly-goal').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
