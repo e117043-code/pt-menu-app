@@ -150,7 +150,7 @@
 
     /* 編集UI */
     .ex-select {
-      flex: 1; width: auto; min-width: 0; padding: 6px 8px; border: 1px solid #b7e4c7;
+      flex: 1; width: auto !important; min-width: 0; padding: 6px 8px; border: 1px solid #b7e4c7;
       border-radius: 6px; font-size: 0.85rem; background: #f8fffe;
     }
     .ex-sets-input, .ex-reps-input {
@@ -653,6 +653,8 @@ ${exerciseList}
 
   // ---- 種目行のHTML生成 ----
   function buildExRow(ex) {
+    const resolvedName = findExercise(ex.name) ? ex.name : EXERCISES[0].name;
+    ex = { ...ex, name: resolvedName };
     const exData = findExercise(ex.name);
     const cal = calcExCal(exData, ex.sets);
     const videoHtml = exData
