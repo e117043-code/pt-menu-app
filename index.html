@@ -532,7 +532,7 @@
     const stress = document.getElementById('stress').value;
 
     // 種目リストをプロンプトに含める
-    const exerciseList = EXERCISES.map(e => `${e.name}（${e.category}）`).join('、');
+    const exerciseList = EXERCISES.map(e => `・${e.name}（${e.category}）`).join('\n');
 
     const prompt = `あなたはプロのパーソナルトレーナーです。以下のクライアント情報をもとに、最適な1ヶ月のトレーニングメニューを作成してください。
 
@@ -553,7 +553,7 @@
 ## 使用できる種目リスト
 ${exerciseList}
 
-上記リストの種目名を使ってメニューを構成してください。リストにない種目は使わないでください。
+【重要】必ず上記リストに記載された種目名を一字一句そのまま使用してください。リストにない種目名は絶対に使わないでください。repsは必ず「10回」「8〜12回」「30秒」などの文字列で返し、nullにしないでください。
 
 ## 出力形式（必ずJSON形式で出力してください）
 
@@ -610,6 +610,10 @@ ${exerciseList}
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        if (res.status === 401) {
+          localStorage.removeItem('claude_api_key');
+          updateApiStatus();
+        }
         throw new Error(err.error?.message || `APIエラー (${res.status})`);
       }
 
@@ -659,7 +663,7 @@ ${exerciseList}
       <input class="ex-sets-input" type="number" min="1" max="20" value="${ex.sets}"
         title="セット数" onchange="recalcRow(this)">
       <span style="font-size:0.8rem;color:#777;">×</span>
-      <input class="ex-reps-input" type="text" value="${ex.reps}" title="回数・時間">
+      <input class="ex-reps-input" type="text" value="${ex.reps ?? (ex.durationMins ? ex.durationMins + '分' : '10回')}" title="回数・時間">
       <div class="ex-cal">${cal > 0 ? `約${cal}kcal` : ''}</div>
       ${videoHtml}
       <button class="ex-del-btn" onclick="deleteExRow(this)" title="削除">×</button>
