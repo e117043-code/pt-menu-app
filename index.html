@@ -378,7 +378,21 @@
       </div>
     </div>
 
-    <!-- 10. 睡眠・ストレス -->
+    <!-- 10. トレーニング環境 -->
+    <div class="card">
+      <div class="card-title">トレーニング環境</div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>利用できる環境（複数選択可）</label>
+        <div class="checkbox-group">
+          <label><input type="checkbox" name="env" value="ジム（マシン・バーベル・ダンベル等）"> ジム（マシン・バーベル・ダンベル等）</label>
+          <label><input type="checkbox" name="env" value="自宅（器具なし・自重のみ）"> 自宅（器具なし・自重のみ）</label>
+          <label><input type="checkbox" name="env" value="自宅（ダンベル・ケトルベルあり）"> 自宅（ダンベル・ケトルベルあり）</label>
+          <label><input type="checkbox" name="env" value="屋外（公園・ランニングコース等）"> 屋外（公園・ランニングコース等）</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 11. 睡眠・ストレス -->
     <div class="card">
       <div class="card-title">睡眠時間とストレス感</div>
       <div class="inline-row">
@@ -428,6 +442,7 @@
     <div class="output-section">
       <div class="output-label">週間トレーニングメニュー</div>
       <div class="output-box" id="out-weekly-menu"></div>
+      <button class="copy-btn" id="copy-menu-btn" onclick="copyMenu()" style="margin-top:10px;">メニューをコピー（LINE・メモ用）</button>
     </div>
 
     <div class="output-section">
@@ -529,6 +544,7 @@
     const frequency = document.getElementById('frequency').value;
     const duration = document.getElementById('duration').value;
     const timeSlots = [...document.querySelectorAll('input[name="timeSlot"]:checked')].map(c => c.value);
+    const envs = [...document.querySelectorAll('input[name="env"]:checked')].map(c => c.value);
     const sleep = document.getElementById('sleep').value;
     const stress = document.getElementById('stress').value;
 
@@ -550,6 +566,7 @@
 - トレーニングしやすい時間帯: ${timeSlots.length ? timeSlots.join('、') : '未回答'}
 - 睡眠時間: ${sleep}
 - ストレス感: ${stress}
+- トレーニング環境: ${envs.length ? envs.join('、') : '未回答'}
 
 ## 使用できる種目リスト
 ${exerciseList}
@@ -794,6 +811,32 @@ ${exerciseList}
     document.getElementById('output').style.display = 'block';
     recalcTotals();
     document.getElementById('out-monthly-goal').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---- メニューをテキストでコピー ----
+  function copyMenu() {
+    let text = `【今月の目標】\n${document.getElementById('out-monthly-goal').textContent}\n\n`;
+    text += `【週間トレーニングメニュー】`;
+    document.querySelectorAll('.day-block').forEach(block => {
+      const dayLabel = block.querySelector('.day-label')?.textContent || '';
+      text += `\n\n■ ${dayLabel}\n`;
+      const restDay = block.querySelector('.rest-day');
+      if (restDay) {
+        text += `休息日（ストレッチ・散歩など）`;
+      } else {
+        block.querySelectorAll('.exercise-row').forEach(row => {
+          const name = row.querySelector('.ex-select')?.value || '';
+          const sets = row.querySelector('.ex-sets-input')?.value || '';
+          const reps = row.querySelector('.ex-reps-input')?.value || '';
+          if (name) text += `・${name}　${sets}セット × ${reps}\n`;
+        });
+      }
+    });
+    navigator.clipboard.writeText(text.trim()).then(() => {
+      const btn = document.getElementById('copy-menu-btn');
+      btn.textContent = 'コピーしました ✓';
+      setTimeout(() => { btn.textContent = 'メニューをコピー（LINE・メモ用）'; }, 2000);
+    });
   }
 
   // ---- コピー ----
