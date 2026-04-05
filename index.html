@@ -134,10 +134,11 @@
       border-left: 3px solid #40916c; padding-left: 8px; margin-bottom: 6px;
     }
     .exercise-row {
-      display: flex; align-items: center; gap: 8px;
-      padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem;
+      display: flex; flex-direction: column;
+      padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; gap: 4px;
     }
     .exercise-row:last-child { border-bottom: none; }
+    .ex-row-controls { display: flex; align-items: center; gap: 8px; }
     .ex-name { font-weight: 600; flex: 1; }
     .ex-detail { color: #666; font-size: 0.8rem; }
     .ex-cal { color: #40916c; font-weight: 600; font-size: 0.8rem; white-space: nowrap; }
@@ -662,13 +663,15 @@ ${exerciseList}
       : '';
     return `
       ${buildExSelect(ex.name)}
-      <input class="ex-sets-input" type="number" min="1" max="20" value="${ex.sets}"
-        title="セット数" onchange="recalcRow(this)">
-      <span style="font-size:0.8rem;color:#777;">×</span>
-      <input class="ex-reps-input" type="text" value="${ex.reps ?? (ex.durationMins ? ex.durationMins + '分' : '10回')}" title="回数・時間">
-      <div class="ex-cal">${cal > 0 ? `約${cal}kcal` : ''}</div>
-      ${videoHtml}
-      <button class="ex-del-btn" onclick="deleteExRow(this)" title="削除">×</button>
+      <div class="ex-row-controls">
+        <input class="ex-sets-input" type="number" min="1" max="20" value="${ex.sets}"
+          title="セット数" onchange="recalcRow(this)">
+        <span style="font-size:0.8rem;color:#777;">×</span>
+        <input class="ex-reps-input" type="text" value="${ex.reps ?? (ex.durationMins ? ex.durationMins + '分' : '10回')}" title="回数・時間">
+        <div class="ex-cal">${cal > 0 ? `約${cal}kcal` : ''}</div>
+        ${videoHtml}
+        <button class="ex-del-btn" onclick="deleteExRow(this)" title="削除">×</button>
+      </div>
     `;
   }
 
