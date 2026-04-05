@@ -151,7 +151,7 @@
 
     /* 編集UI */
     .ex-select {
-      flex: 1; width: auto !important; min-width: 0; padding: 6px 8px; border: 1px solid #b7e4c7;
+      width: 100%; padding: 6px 8px; border: 1px solid #b7e4c7;
       border-radius: 6px; font-size: 0.85rem; background: #f8fffe;
     }
     .ex-sets-input, .ex-reps-input {
@@ -554,7 +554,10 @@
 ## 使用できる種目リスト
 ${exerciseList}
 
-【重要】必ず上記リストに記載された種目名を一字一句そのまま使用してください。リストにない種目名は絶対に使わないでください。repsは必ず「10回」「8〜12回」「30秒」などの文字列で返し、nullにしないでください。
+【重要】
+- 必ず上記リストに記載された種目名を一字一句そのまま使用してください。リストにない種目名は絶対に使わないでください。
+- repsは必ず「10回」「8〜12回」「30秒」などの文字列で返し、nullにしないでください。
+- weeklyMenuは月〜日の7日分を返してください。トレーニング日数は週の頻度（${frequency}）に合わせ、残りは必ずisRest: trueにしてください。
 
 ## 出力形式（必ずJSON形式で出力してください）
 
