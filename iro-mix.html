@@ -238,46 +238,146 @@
       text-align: center;
       margin-top: 4px;
     }
+
+    /* モード切替タブ */
+    .mode-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .mode-tab {
+      padding: 8px 24px;
+      border-radius: 20px;
+      border: 2px solid #ccc;
+      background: white;
+      font-size: 0.95rem;
+      cursor: pointer;
+      color: #888;
+      font-weight: bold;
+      transition: all 0.15s;
+    }
+
+    .mode-tab.active {
+      background: #4488ff;
+      border-color: #4488ff;
+      color: white;
+    }
+
+    /* 自由探索モード */
+    .free-result {
+      width: 100%;
+      height: 180px;
+      border-radius: 16px;
+      border: 3px solid #66aaff;
+      transition: background-color 0.3s;
+      margin-bottom: 4px;
+    }
+
+    .free-label {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #777;
+      margin-bottom: 8px;
+    }
+
+    /* 色選択チェックボックス */
+    .color-select-area {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+      justify-content: center;
+    }
+
+    .color-select-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 12px;
+      border-radius: 16px;
+      border: 2px solid #ddd;
+      background: white;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: bold;
+      color: #555;
+      transition: all 0.15s;
+    }
+
+    .color-select-btn.selected {
+      border-color: #4488ff;
+      background: #e8f0ff;
+      color: #224488;
+    }
+
+    .color-select-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid #ccc;
+    }
   </style>
 </head>
 <body>
   <h1>🎨 いろまぜ算数 ― 比で色を作ろう！</h1>
 
-  <div class="stage-bar" id="stageBar">ステージ 1 / 6</div>
+  <!-- モード切替 -->
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tabStage" onclick="switchMode('stage')">🎯 チャレンジ</button>
+    <button class="mode-tab" id="tabFree" onclick="switchMode('free')">🎨 じゆうにまぜる</button>
+  </div>
 
-  <div class="main">
-    <!-- 操作パネル -->
-    <div class="panel">
-      <h2>絵の具の量を決めよう</h2>
-
-      <div id="colorControls"></div>
-
-      <div class="ratio-display">
-        比： <span id="ratioText">—</span>
+  <!-- チャレンジモード -->
+  <div id="modeStage">
+    <div class="stage-bar" id="stageBar">ステージ 1 / 6</div>
+    <div class="main">
+      <div class="panel">
+        <h2>絵の具の量を決めよう</h2>
+        <div id="colorControls"></div>
+        <div class="ratio-display">比： <span id="ratioText">—</span></div>
+        <div class="ratio-hint" id="ratioHint"></div>
       </div>
-      <div class="ratio-hint" id="ratioHint"></div>
+      <div class="result-area">
+        <div class="color-compare">
+          <div class="color-box-wrap">
+            <p>🎯 目標の色</p>
+            <div class="color-box target" id="targetBox"></div>
+          </div>
+          <div class="color-box-wrap">
+            <p>🖌️ 自分の色</p>
+            <div class="color-box mine" id="myBox"></div>
+          </div>
+        </div>
+        <div class="feedback" id="feedback"></div>
+        <button class="next-btn" id="nextBtn" disabled onclick="nextStage()">次のステージへ →</button>
+        <div class="history-area">
+          <h3>試した記録</h3>
+          <div class="history-list" id="historyList"></div>
+        </div>
+      </div>
     </div>
+  </div>
 
-    <!-- 結果エリア -->
-    <div class="result-area">
-      <div class="color-compare">
-        <div class="color-box-wrap">
-          <p>🎯 目標の色</p>
-          <div class="color-box target" id="targetBox"></div>
-        </div>
-        <div class="color-box-wrap">
-          <p>🖌️ 自分の色</p>
-          <div class="color-box mine" id="myBox"></div>
-        </div>
+  <!-- 自由探索モード -->
+  <div id="modeFree" style="display:none;">
+    <div class="main">
+      <div class="panel">
+        <h2>混ぜる色を選ぼう</h2>
+        <div class="color-select-area" id="freeColorSelect"></div>
+        <h2 style="margin-bottom:12px;">量を決めよう</h2>
+        <div id="freeColorControls"></div>
+        <div class="ratio-display">比： <span id="freeRatioText">—</span></div>
+        <div class="ratio-hint" id="freeRatioHint"></div>
       </div>
-
-      <div class="feedback" id="feedback"></div>
-
-      <button class="next-btn" id="nextBtn" disabled onclick="nextStage()">次のステージへ →</button>
-
-      <div class="history-area">
-        <h3>試した記録</h3>
-        <div class="history-list" id="historyList"></div>
+      <div class="result-area">
+        <div class="free-label">🖌️ できた色</div>
+        <div class="free-result" id="freeResultBox"></div>
+        <div class="history-area">
+          <h3>試した記録</h3>
+          <div class="history-list" id="freeHistoryList"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -589,8 +689,155 @@
       }
     }
 
+    // ---- 自由探索モード ----
+    const ALL_COLORS = ['赤', '青', '黄', '白', '黒'];
+    let freeSelected = ['赤', '青']; // 選択中の色
+    let freeAmounts = { 赤: 0, 青: 0 };
+    let freeLastKey = null;
+
+    function initFreeMode() {
+      renderFreeColorSelect();
+      renderFreeControls();
+      updateFree();
+    }
+
+    function renderFreeColorSelect() {
+      const area = document.getElementById('freeColorSelect');
+      area.innerHTML = '';
+      ALL_COLORS.forEach(name => {
+        const info = COLORS[name];
+        const btn = document.createElement('button');
+        btn.className = 'color-select-btn' + (freeSelected.includes(name) ? ' selected' : '');
+        btn.onclick = () => toggleFreeColor(name);
+
+        const dot = document.createElement('div');
+        dot.className = 'color-select-dot';
+        dot.style.background = info.dot;
+
+        btn.appendChild(dot);
+        btn.appendChild(document.createTextNode(name));
+        area.appendChild(btn);
+      });
+    }
+
+    function toggleFreeColor(name) {
+      if (freeSelected.includes(name)) {
+        if (freeSelected.length <= 2) return; // 最低2色は維持
+        freeSelected = freeSelected.filter(c => c !== name);
+        delete freeAmounts[name];
+      } else {
+        if (freeSelected.length >= 4) return; // 最大4色
+        freeSelected.push(name);
+        freeAmounts[name] = 0;
+      }
+      renderFreeColorSelect();
+      renderFreeControls();
+      updateFree();
+    }
+
+    function renderFreeControls() {
+      const container = document.getElementById('freeColorControls');
+      container.innerHTML = '';
+
+      freeSelected.forEach(name => {
+        const info = COLORS[name];
+        const row = document.createElement('div');
+        row.className = 'color-row';
+
+        const dot = document.createElement('div');
+        dot.className = 'color-dot';
+        dot.style.background = info.dot;
+
+        const label = document.createElement('div');
+        label.className = 'color-label';
+        label.textContent = name;
+
+        const counter = document.createElement('div');
+        counter.className = 'counter';
+
+        const minus = document.createElement('button');
+        minus.textContent = '−';
+        minus.onclick = () => { if (freeAmounts[name] > 0) { freeAmounts[name]--; updateFree(); } };
+
+        const numEl = document.createElement('div');
+        numEl.className = 'num';
+        numEl.id = `free-num-${name}`;
+        numEl.textContent = freeAmounts[name] || 0;
+
+        const plus = document.createElement('button');
+        plus.textContent = '＋';
+        plus.onclick = () => { if (freeAmounts[name] < 9) { freeAmounts[name]++; updateFree(); } };
+
+        counter.append(minus, numEl, plus);
+        row.append(dot, label, counter);
+        container.appendChild(row);
+      });
+    }
+
+    function updateFree() {
+      freeSelected.forEach(name => {
+        const el = document.getElementById(`free-num-${name}`);
+        if (el) el.textContent = freeAmounts[name] || 0;
+      });
+
+      const myColor = mixColor(freeAmounts);
+      document.getElementById('freeResultBox').style.background = myColor;
+
+      // 比の表示
+      const vals = freeSelected.map(c => freeAmounts[c] || 0);
+      const total = vals.reduce((s, v) => s + v, 0);
+
+      if (total === 0) {
+        document.getElementById('freeRatioText').textContent = '—';
+        document.getElementById('freeRatioHint').textContent = '';
+        return;
+      }
+
+      document.getElementById('freeRatioText').textContent = vals.join(' ：');
+
+      const nonZero = vals.filter(v => v > 0);
+      if (nonZero.length >= 2) {
+        const g = gcdArr(nonZero);
+        const simplified = vals.map(v => v / g).join(' ：');
+        const simpleStr = vals.join(' ：');
+        document.getElementById('freeRatioHint').textContent =
+          simplified !== simpleStr ? `（最も簡単な比：${simplified}）` : '';
+      } else {
+        document.getElementById('freeRatioHint').textContent = '';
+      }
+
+      // 履歴に追加
+      const key = freeSelected.map(c => freeAmounts[c] || 0).join(',') + freeSelected.join('');
+      if (key !== freeLastKey && total > 0) {
+        freeLastKey = key;
+        const item = document.createElement('div');
+        item.className = 'history-item';
+
+        const swatch = document.createElement('div');
+        swatch.className = 'history-swatch';
+        swatch.style.background = myColor;
+
+        item.appendChild(swatch);
+        item.appendChild(document.createTextNode(
+          freeSelected.map(c => `${c}${freeAmounts[c] || 0}`).join(' ：')
+        ));
+
+        const list = document.getElementById('freeHistoryList');
+        list.insertBefore(item, list.firstChild);
+      }
+    }
+
+    // ---- モード切替 ----
+    function switchMode(mode) {
+      document.getElementById('modeStage').style.display = mode === 'stage' ? '' : 'none';
+      document.getElementById('modeFree').style.display = mode === 'free' ? '' : 'none';
+      document.getElementById('tabStage').className = 'mode-tab' + (mode === 'stage' ? ' active' : '');
+      document.getElementById('tabFree').className = 'mode-tab' + (mode === 'free' ? ' active' : '');
+    }
+
     // 初期化
     initStage();
+    initFreeMode();
   </script>
 </body>
 </html>
